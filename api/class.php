@@ -3,7 +3,10 @@
 class Converter
 {
    protected 
-   $exrate = array();
+   $exrate = array(),
+   $from='',
+   $to='',
+   $value=0.0;
    
    private 
    $SE = array(
@@ -19,24 +22,24 @@ class Converter
 	   $this->LoadExRate();
    }
    
-   public function Finish($res="") {
+   public function Finish($res = "") {
 	   die(json_encode(array("status"=>'success', "value"=>$res))); 
    }
 
    public function Error($abrerr="") {
-       die(json_encode(array("status"=>'error', "description"=>$this->SE[$abrerr])));
+       die( json_encode( array("status"=>'error', "description"=>$this->SE[$abrerr]) ) );
    }
    
    public function doPrintAV() {
 	   $array_result = array();
 	   
-	   foreach(array_keys($this->exrate['Valute']) as $valute)
-	   array_push($array_result,array('name'=>strtolower($valute),'title'=>$this->exrate['Valute'][$valute]['Name']));
+	   foreach( array_keys( $this->exrate['Valute'] ) as $valute )
+	   array_push( $array_result, array('name' => strtolower($valute), 'title' => $this->exrate['Valute'][$valute]['Name']) );
 	   
 	   echo '[';
 	   
 	   foreach($array_result as $ar_index => $ar_value) {
-		   if($ar_index)
+		   if ($ar_index)
 			   echo ',';
 		   echo json_encode($ar_value);
 	   }
@@ -46,8 +49,14 @@ class Converter
    public function TryConvert($P) {
 	   if( $this->is_valute($from=mb_strtoupper($P['from'])) && $this->is_valute($to=mb_strtoupper($P['to'])) && ($from!=$to) ) 
 	   {
-		   if( is_int($value=(float)$P['value']) || is_float($value) )
-			   $this->doConvert($from,$to,$value);
+		   if( is_float($value=(float)$P['value']) )
+		   {
+			   $this->from=$from;
+			   $this->to=$to;
+			   $this->value=$value;
+			   
+			   $this->doConvert();
+		   }
 		   else
 			   $this->Error('value'); 
 	   }
@@ -55,44 +64,43 @@ class Converter
 		   $this->Error('valute');
    }
    
-   private function doConvert($f,$t,$v) {
-	   $vov = $this->LoadVoV($f,$t);
+   private function doConvert() {
+	   $vov = $this->LoadVoV();
 	   
 	   $eFrom=$vov[0];
 	   $eTo=$vov[1];
 	   
 	   $this->Finish(
-	   ($eFrom * $v / $eTo)
+	   ($eFrom * $this->value / $eTo)
 	   );
-	   
    }
    
    private function is_valute($s) {
-	   return !array_key_exists( $s, $this->exrate['Valute'] )?false:true;
+	   return !array_key_exists( $s, $this->exrate['Valute'] ) ? false : true;
    }
    
-   private function LoadVov($f,$t) {
-	   return array( ($this->exrate['Valute'][$f]['Value']), ($this->exrate['Valute'][$t]['Value']) );
+   private function LoadVov() {
+	   return array( ($this->exrate['Valute'][$this->from]['Value']), ($this->exrate['Valute'][$this->to]['Value']) );
    }
    
    private function LoadExRate() {
-	
-	$curl = curl_init();
-    curl_setopt( $curl, CURLOPT_URL, 'https://www.cbr-xml-daily.ru/daily_json.js' );
-    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
-    curl_setopt( $curl, CURLOPT_POST, false );
-    $response = curl_exec( $curl );
-    curl_close( $curl );
-               
-    if ( ($this->exrate = json_decode( $response, true )) !== null ) {
-		$this->exrate['Valute']['RUB']['Value'] = 1;
-		$this->exrate['Valute']['RUB']['Name'] = 'Российский Рубль';
-		return true;		
-	}
-	
-	$this->Error("loadexr");
-	
-	return false;
+	   
+	   $curl = curl_init();
+	   curl_setopt( $curl, CURLOPT_URL, 'https://www.cbr-xml-daily.ru/daily_json.js' );
+	   curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
+	   curl_setopt( $curl, CURLOPT_POST, false );
+	   $response = curl_exec( $curl );
+	   curl_close( $curl );
+	   if ( ($this->exrate = json_decode( $response, true )) !== null ) 
+	   {
+		   $this->exrate['Valute']['RUB']['Value'] = 1;
+		   $this->exrate['Valute']['RUB']['Name'] = 'Российский Рубль';
+		   return true;	
+	   }
+	   
+	   $this->Error("loadexr");
+	   
+	   return false;
    }
 }
 
